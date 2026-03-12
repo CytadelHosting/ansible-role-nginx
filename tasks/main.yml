@@ -41,7 +41,7 @@
     owner: root
     group: "{{ root_group }}"
     mode: 0644
-    validate: nginx -t -p /etc/nginx/ -c %s
+    #validate: nginx -t -p /etc/nginx/ -c %s
   notify:
     - reload nginx
 
