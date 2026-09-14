@@ -1,10 +1,11 @@
 ---
 # Debian/nginx.org: vhosts in sites-available, enabled via symlink.
 
-- name: Remove package default vhost.
-  file:
-    path: "{{ nginx_default_vhost_path }}"
-    state: absent
+# include conf.d/*.conf ignore default.disabled. On garde le fichier paquet.
+- name: Disable package default vhost.
+  command: mv -f {{ nginx_default_vhost_path }} {{ nginx_default_vhost_disabled_path }}
+  args:
+    removes: "{{ nginx_default_vhost_path }}"
   when: nginx_remove_default_vhost | bool
   notify: reload nginx
 
@@ -34,23 +35,35 @@
     group: "{{ root_group }}"
     mode: "0755"
 
-- name: Deploy default site in sites-available.
+# Seed only: on n'ecrase jamais un default deja present sur le serveur.
+- name: Deploy default site in sites-available if missing.
   template:
     src: "{{ nginx_default_site_template }}"
     dest: "{{ nginx_sites_available_path }}/{{ nginx_default_site_filename }}"
     owner: root
     group: "{{ root_group }}"
     mode: "0644"
+    force: false
   when: nginx_default_site_enabled | bool
   notify: reload nginx
 
-- name: Enable default site.
+- name: Enable default site as 000-default.conf.
   file:
     src: "{{ nginx_sites_available_path }}/{{ nginx_default_site_filename }}"
-    dest: "{{ nginx_vhost_path }}/{{ nginx_default_site_filename }}"
+    dest: "{{ nginx_vhost_path }}/{{ nginx_default_site_link }}"
     state: link
     force: true
   when: nginx_default_site_enabled | bool
+  notify: reload nginx
+
+# Ancien symlink homonyme (sites-enabled/default) si on a migre le nom du link.
+- name: Remove leftover default symlink name.
+  file:
+    path: "{{ nginx_vhost_path }}/{{ nginx_default_site_filename }}"
+    state: absent
+  when:
+    - nginx_default_site_enabled | bool
+    - nginx_default_site_link != nginx_default_site_filename
   notify: reload nginx
 
 - name: Disable default site.
@@ -58,8 +71,8 @@
     path: "{{ item }}"
     state: absent
   loop:
+    - "{{ nginx_vhost_path }}/{{ nginx_default_site_link }}"
     - "{{ nginx_vhost_path }}/{{ nginx_default_site_filename }}"
-    - "{{ nginx_sites_available_path }}/{{ nginx_default_site_filename }}"
   when: not nginx_default_site_enabled | bool
   notify: reload nginx
 

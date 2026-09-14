@@ -48,11 +48,15 @@ Debian vhost layout:
 - `/etc/nginx/sites-enabled/<name>` — symlink
 - `/etc/nginx/conf.d/` — snippets HTTP (tuning, modules), pas les vhosts
 
-The catch-all default site is `sites-available/default` (`templates/default-site.j2`). `conf.d/default.conf` (paquet nginx.org) is always removed.
+The catch-all default site is seeded once in `sites-available/default` (`templates/default-site.j2`) and enabled as `sites-enabled/000-default.conf`. Existing `sites-available/default` is never overwritten. `conf.d/default.conf` (paquet nginx.org) is renamed to `conf.d/default.disabled` so `include *.conf` skips it.
 
     nginx_default_site_enabled: true
-    nginx_default_site_template: default-site.j2
-    nginx_default_site_return: "444"   # close unknown Host; empty = serve root
+    nginx_default_site_filename: default
+    nginx_default_site_link: 000-default.conf
+    nginx_default_site_listen: "80 default_server"
+    nginx_default_site_listen_ipv6: "80 default_server"
+    nginx_default_site_index: "index.html index.htm index.php index.nginx-debian.html"
+    nginx_default_site_return: "444"   # location / only; empty = try_files
 
 `fastcgi_params` is kept. `fastcgi.conf`, `uwsgi_params` and `scgi_params` are deleted (uwsgi = Python uWSGI, scgi = old alternative to FastCGI).
 
@@ -72,7 +76,7 @@ When `nginx_migrate` is true (and no stamp, unless `force`):
 1. Backup current files under `/var/backups/nginx-migrate/<timestamp>/`
 2. Inventory existing `conf.d/*.conf` (left untouched)
 3. Restore `nginx.conf`, `mime.types`, `fastcgi_params` from the **installed package**
-4. Delete `fastcgi.conf`, `uwsgi_params`, `scgi_params`, `conf.d/default.conf`, `snippets`, `proxy_params`
+4. Delete `fastcgi.conf`, `uwsgi_params`, `scgi_params`, `snippets`, `proxy_params`
 5. Keep `sites-available` / `sites-enabled`
 6. Write `/etc/nginx/.cytadel-migrated`
 

@@ -68,7 +68,6 @@ nginx_migrate_remove_paths:
   - /etc/nginx/fastcgi.conf
   - /etc/nginx/uwsgi_params
   - /etc/nginx/scgi_params
-  - /etc/nginx/conf.d/default.conf
   - /etc/nginx/snippets
   - /etc/nginx/proxy_params
 
@@ -133,13 +132,15 @@ nginx_sites_available_path: /etc/nginx/sites-available
 
 nginx_default_site_enabled: true
 nginx_default_site_template: default-site.j2
+# Fichier réel. Créé seulement s'il n'existe pas encore (force: false).
 nginx_default_site_filename: default
+# Nom du symlink dans sites-enabled (ordre de chargement).
+nginx_default_site_link: 000-default.conf
+# HTTP only (ex. 8080 default_server derrière haproxy). Le bloc TLS reste 443.
 nginx_default_site_listen: "80 default_server"
 nginx_default_site_listen_ipv6: "80 default_server"
-nginx_default_site_server_name: "_"
-nginx_default_site_root: ""
-nginx_default_site_index: "index.html index.htm"
-# 444 = close without response. Empty string to serve root instead.
+nginx_default_site_index: "index.html index.htm index.php index.nginx-debian.html"
+# Catch-all location / : 444 = close. Chaîne vide = try_files (servir root).
 nginx_default_site_return: "444"
 nginx_default_site_extra_parameters: ""
 
