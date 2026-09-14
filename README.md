@@ -48,10 +48,10 @@ Debian vhost layout:
 - `/etc/nginx/sites-enabled/<name>` — symlink
 - `/etc/nginx/conf.d/` — snippets HTTP (tuning, modules), pas les vhosts
 
-The catch-all default site is seeded once in `sites-available/default` (`templates/default-site.j2`) and enabled as `sites-enabled/000-default.conf`. Existing `sites-available/default` is never overwritten. `conf.d/default.conf` (paquet nginx.org) is renamed to `conf.d/default.disabled` so `include *.conf` skips it.
+The catch-all default site is seeded once as `sites-available/000-default.conf` and enabled as `sites-enabled/000-default.conf` (same name). Existing file is never overwritten. A leftover `sites-available/default` is renamed to `000-default.conf` if the new name is absent. `conf.d/default.conf` (paquet nginx.org) is renamed to `conf.d/default.disabled` so `include *.conf` skips it.
 
     nginx_default_site_enabled: true
-    nginx_default_site_filename: default
+    nginx_default_site_filename: 000-default.conf
     nginx_default_site_link: 000-default.conf
     nginx_default_site_listen: "80 default_server"
     nginx_default_site_listen_ipv6: "80 default_server"

@@ -35,6 +35,17 @@
     group: "{{ root_group }}"
     mode: "0755"
 
+# Ancien nom sites-available/default → 000-default.conf, sans ecraser.
+- name: Rename legacy default site filename.
+  command: mv {{ nginx_sites_available_path }}/default {{ nginx_sites_available_path }}/{{ nginx_default_site_filename }}
+  args:
+    removes: "{{ nginx_sites_available_path }}/default"
+    creates: "{{ nginx_sites_available_path }}/{{ nginx_default_site_filename }}"
+  when:
+    - nginx_default_site_enabled | bool
+    - nginx_default_site_filename != 'default'
+  notify: reload nginx
+
 # Seed only: on n'ecrase jamais un default deja present sur le serveur.
 - name: Deploy default site in sites-available if missing.
   template:
@@ -56,14 +67,13 @@
   when: nginx_default_site_enabled | bool
   notify: reload nginx
 
-# Ancien symlink homonyme (sites-enabled/default) si on a migre le nom du link.
-- name: Remove leftover default symlink name.
+- name: Remove leftover sites-enabled/default symlink.
   file:
-    path: "{{ nginx_vhost_path }}/{{ nginx_default_site_filename }}"
+    path: "{{ nginx_vhost_path }}/default"
     state: absent
   when:
     - nginx_default_site_enabled | bool
-    - nginx_default_site_link != nginx_default_site_filename
+    - nginx_default_site_link != 'default'
   notify: reload nginx
 
 - name: Disable default site.

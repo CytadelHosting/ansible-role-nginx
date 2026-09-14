@@ -132,9 +132,8 @@ nginx_sites_available_path: /etc/nginx/sites-available
 
 nginx_default_site_enabled: true
 nginx_default_site_template: default-site.j2
-# Fichier réel. Créé seulement s'il n'existe pas encore (force: false).
-nginx_default_site_filename: default
-# Nom du symlink dans sites-enabled (ordre de chargement).
+# Même nom dans available et enabled (lisible).
+nginx_default_site_filename: 000-default.conf
 nginx_default_site_link: 000-default.conf
 # HTTP only (ex. 8080 default_server derrière haproxy). Le bloc TLS reste 443.
 nginx_default_site_listen: "80 default_server"
