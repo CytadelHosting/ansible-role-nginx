@@ -9,9 +9,10 @@ nginx_vhost_path: /etc/nginx/sites-enabled
 # Package file from nginx.org — not the Debian sites-enabled/default.
 nginx_default_vhost_path: /etc/nginx/conf.d/default.conf
 nginx_default_vhost_disabled_path: /etc/nginx/conf.d/default.disabled
-__nginx_user: "nginx"
+__nginx_user: "www-data"
 
 # Cytadel Debian defaults (nginx.org + sites-* layout).
+nginx_conf_template: nginx-debian.conf.j2
 nginx_remove_default_vhost: true
 nginx_modules_enabled_include: true
 nginx_default_site_enabled: true

@@ -1,6 +1,5 @@
 ---
-# Deploy only the snippets declared in nginx_confd_files.
-# Undeclared files already in conf.d are left as-is (adopted).
+# Bibliothèque conf.d + extras playbook. Les *.conf non gérés restent en place.
 
 - name: Ensure nginx conf.d directory exists.
   file:
@@ -43,7 +42,80 @@
   when: nginx_manage_main_config | bool
   notify: reload nginx
 
-- name: Deploy declared conf.d snippets.
+- name: Deploy enabled library snippets.
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ nginx_conf_path }}/{{ item.name }}"
+    owner: root
+    group: "{{ root_group }}"
+    mode: "0644"
+  loop: "{{ nginx_confd_catalog }}"
+  when: nginx_confd_enable[item.key] | default(false) | bool
+  notify: reload nginx
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Remove disabled library snippets.
+  file:
+    path: "{{ nginx_conf_path }}/{{ item.name }}"
+    state: absent
+  loop: "{{ nginx_confd_catalog }}"
+  when: not (nginx_confd_enable[item.key] | default(false) | bool)
+  notify: reload nginx
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Deploy extra conf.d files from playbook dir.
+  copy:
+    src: "{{ item }}"
+    dest: "{{ nginx_conf_path }}/{{ item | basename }}"
+    owner: root
+    group: "{{ root_group }}"
+    mode: "0644"
+  loop: "{{ query('fileglob', nginx_confd_extra_dir ~ '/*.conf') if nginx_confd_extra_dir else [] }}"
+  notify: reload nginx
+
+- name: Deploy extra conf.d entry (template).
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ nginx_conf_path }}/{{ item.dest | default(item.name) }}"
+    owner: root
+    group: "{{ root_group }}"
+    mode: "{{ item.mode | default('0644') }}"
+  loop: "{{ nginx_confd_extra }}"
+  when:
+    - item.state | default('present') != 'absent'
+    - (item.src | basename) is match('.*\\.j2$')
+  notify: reload nginx
+  loop_control:
+    label: "{{ item.dest | default(item.name | default(item.src)) }}"
+
+- name: Deploy extra conf.d entry (copy).
+  copy:
+    src: "{{ item.src }}"
+    dest: "{{ nginx_conf_path }}/{{ item.dest | default(item.name) }}"
+    owner: root
+    group: "{{ root_group }}"
+    mode: "{{ item.mode | default('0644') }}"
+  loop: "{{ nginx_confd_extra }}"
+  when:
+    - item.state | default('present') != 'absent'
+    - not ((item.src | basename) is match('.*\\.j2$'))
+  notify: reload nginx
+  loop_control:
+    label: "{{ item.dest | default(item.name | default(item.src)) }}"
+
+- name: Remove extra conf.d entry.
+  file:
+    path: "{{ nginx_conf_path }}/{{ item.dest | default(item.name) }}"
+    state: absent
+  loop: "{{ nginx_confd_extra }}"
+  when: item.state | default('present') == 'absent'
+  notify: reload nginx
+  loop_control:
+    label: "{{ item.dest | default(item.name | default(item.src)) }}"
+
+- name: Deploy declared conf.d snippets (legacy nginx_confd_files).
   template:
     src: "{{ item.src }}"
     dest: "{{ nginx_conf_path }}/{{ item.name }}"
@@ -56,7 +128,7 @@
   loop_control:
     label: "{{ item.name }}"
 
-- name: Remove declared conf.d snippets.
+- name: Remove declared conf.d snippets (legacy nginx_confd_files).
   file:
     path: "{{ nginx_conf_path }}/{{ item.name }}"
     state: absent
@@ -65,15 +137,3 @@
   notify: reload nginx
   loop_control:
     label: "{{ item.name }}"
-
-- name: Deploy upstreams snippet when upstreams are defined.
-  template:
-    src: conf.d/20-upstreams.conf.j2
-    dest: "{{ nginx_conf_path }}/20-upstreams.conf"
-    owner: root
-    group: "{{ root_group }}"
-    mode: "0644"
-  when:
-    - nginx_upstreams | length > 0
-    - not nginx_manage_main_config | bool
-  notify: reload nginx

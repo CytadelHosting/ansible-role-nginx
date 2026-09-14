@@ -76,17 +76,45 @@ nginx_migrate_adopt_from:
   - /etc/nginx/conf.d
 
 # ---------------------------------------------------------------------------
-# Declared conf.d snippets shipped by the role (or a playbook path).
-# Existing undeclared files in conf.d are left untouched.
+# Bibliothèque conf.d (Debian). Chaque clé s'active indépendamment.
+# Fichiers non listés déjà présents sur le serveur : on n'y touche pas.
 # ---------------------------------------------------------------------------
-# nginx_confd_files:
-#   - name: 00-tuning.conf
-#     src: conf.d/00-tuning.conf.j2
-#   - name: 10-log-formats.conf
-#     src: conf.d/10-log-formats.conf.j2
-#   - name: brotli.conf
-#     src: conf.d/brotli.conf.j2
-#     state: present
+# nginx_confd_enable:
+#   server_names_hash: true
+#   client_max_body: true
+#   gzip: true
+#   brotli: true
+#   upstreams: true
+nginx_confd_enable: {}
+
+nginx_confd_catalog:
+  - key: server_names_hash
+    name: 10-server-names-hash.conf
+    src: conf.d/10-server-names-hash.conf.j2
+  - key: client_max_body
+    name: 20-client-max-body.conf
+    src: conf.d/20-client-max-body.conf.j2
+  - key: gzip
+    name: 30-gzip.conf
+    src: conf.d/30-gzip.conf.j2
+  - key: brotli
+    name: 40-brotli.conf
+    src: conf.d/brotli.conf.j2
+  - key: upstreams
+    name: 50-upstreams.conf
+    src: conf.d/20-upstreams.conf.j2
+
+# Includes supplémentaires depuis le playbook (copy si .conf, template si .j2).
+# nginx_confd_extra:
+#   - src: "{{ playbook_dir }}/files/nginx/headers.conf"
+#     dest: headers.conf
+nginx_confd_extra: []
+
+# Dossier local (contrôleur) : tous les *.conf sont copiés dans conf.d.
+# nginx_confd_extra_dir: "{{ playbook_dir }}/files/nginx/conf.d"
+nginx_confd_extra_dir: ""
+
+# Ancien levier (templates). Toujours supporté.
 nginx_confd_files: []
 
 nginx_worker_processes: >-

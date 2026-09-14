@@ -84,9 +84,28 @@ Leave `nginx_migrate: false` afterwards. Re-run with `nginx_migrate_force: true`
 
 Override lists via `nginx_migrate_reset_files`, `nginx_migrate_remove_paths`, `nginx_migrate_adopt_from`.
 
-### Declared conf.d overlays
+### conf.d library (Debian)
 
-Existing undeclared `*.conf` in `conf.d` are never touched. Only names listed here are deployed (or removed):
+`hash_bucket` and `client_max_body_size` are commented in `nginx.conf`. Enable them (and others) per snippet:
+
+    nginx_confd_enable:
+      server_names_hash: true
+      client_max_body: true
+      gzip: true
+      brotli: true
+      upstreams: true
+
+Playbook extras — a whole directory and/or an explicit list:
+
+    nginx_confd_extra_dir: "{{ playbook_dir }}/files/nginx/conf.d"
+
+    nginx_confd_extra:
+      - src: "{{ playbook_dir }}/files/nginx/headers.conf"
+        dest: headers.conf
+      - src: "{{ playbook_dir }}/templates/nginx/foo.conf.j2"
+        dest: foo.conf
+
+Legacy `nginx_confd_files` still works. Undeclared `*.conf` already on the host are left untouched.
 
     nginx_confd_files:
       - name: 00-tuning.conf
