@@ -1,10 +1,19 @@
 ---
-- name: Update apt cache.
-  apt: update_cache=yes cache_valid_time=86400
-  changed_when: false
+- name: Configure nginx.org and blendbyte repositories.
+  include_tasks: repos-Debian.yml
+  when: nginx_official_repo_enabled | bool
 
-- name: Ensure nginx is installed.
+- name: Update apt cache.
   apt:
-    name: "{{ nginx_package_name }}"
+    update_cache: true
+    cache_valid_time: 86400
+  changed_when: false
+  when: not nginx_official_repo_enabled | bool
+
+- name: Ensure nginx and extra packages are installed.
+  apt:
+    name: "{{ [nginx_package_name] + (nginx_extra_packages | default([])) }}"
     state: present
     default_release: "{{ nginx_default_release }}"
+    update_cache: true
+    cache_valid_time: 3600

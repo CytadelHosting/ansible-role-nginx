@@ -1,0 +1,109 @@
+---
+# Debian/nginx.org: vhosts in sites-available, enabled via symlink.
+
+- name: Remove package default vhost.
+  file:
+    path: "{{ nginx_default_vhost_path }}"
+    state: absent
+  when: nginx_remove_default_vhost | bool
+  notify: reload nginx
+
+- name: Remove unused package param files.
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/nginx/fastcgi.conf
+    - /etc/nginx/uwsgi_params
+    - /etc/nginx/scgi_params
+  notify: reload nginx
+
+- name: Ensure sites-available exists.
+  file:
+    path: "{{ nginx_sites_available_path }}"
+    state: directory
+    owner: root
+    group: "{{ root_group }}"
+    mode: "0755"
+
+- name: Ensure sites-enabled exists.
+  file:
+    path: "{{ nginx_vhost_path }}"
+    state: directory
+    owner: root
+    group: "{{ root_group }}"
+    mode: "0755"
+
+- name: Deploy default site in sites-available.
+  template:
+    src: "{{ nginx_default_site_template }}"
+    dest: "{{ nginx_sites_available_path }}/{{ nginx_default_site_filename }}"
+    owner: root
+    group: "{{ root_group }}"
+    mode: "0644"
+  when: nginx_default_site_enabled | bool
+  notify: reload nginx
+
+- name: Enable default site.
+  file:
+    src: "{{ nginx_sites_available_path }}/{{ nginx_default_site_filename }}"
+    dest: "{{ nginx_vhost_path }}/{{ nginx_default_site_filename }}"
+    state: link
+    force: true
+  when: nginx_default_site_enabled | bool
+  notify: reload nginx
+
+- name: Disable default site.
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ nginx_vhost_path }}/{{ nginx_default_site_filename }}"
+    - "{{ nginx_sites_available_path }}/{{ nginx_default_site_filename }}"
+  when: not nginx_default_site_enabled | bool
+  notify: reload nginx
+
+- name: Add managed vhost files in sites-available.
+  template:
+    src: "{{ item.template | default(nginx_vhost_template) }}"
+    dest: "{{ nginx_sites_available_path }}/{{ item.filename | default(item.server_name.split(' ')[0] ~ '.conf') }}"
+    force: true
+    owner: root
+    group: "{{ root_group }}"
+    mode: "0644"
+  when: item.state | default('present') != 'absent'
+  loop: "{{ nginx_vhosts }}"
+  notify: reload nginx
+  loop_control:
+    label: "{{ item.filename | default(item.server_name) }}"
+
+- name: Enable managed vhosts.
+  file:
+    src: "{{ nginx_sites_available_path }}/{{ item.filename | default(item.server_name.split(' ')[0] ~ '.conf') }}"
+    dest: "{{ nginx_vhost_path }}/{{ item.filename | default(item.server_name.split(' ')[0] ~ '.conf') }}"
+    state: link
+    force: true
+  when: item.state | default('present') != 'absent'
+  loop: "{{ nginx_vhosts }}"
+  notify: reload nginx
+  loop_control:
+    label: "{{ item.filename | default(item.server_name) }}"
+
+- name: Disable and remove managed vhosts.
+  file:
+    path: "{{ item.1 }}/{{ item.0.filename | default(item.0.server_name.split(' ')[0] ~ '.conf') }}"
+    state: absent
+  when: item.0.state | default('present') == 'absent'
+  loop: "{{ nginx_vhosts | product([nginx_vhost_path, nginx_sites_available_path]) | list }}"
+  notify: reload nginx
+  loop_control:
+    label: "{{ item.1 }}/{{ item.0.filename | default(item.0.server_name) }}"
+
+- name: Remove legacy vhosts.conf file.
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ nginx_vhost_path }}/vhosts.conf"
+    - "{{ nginx_sites_available_path }}/vhosts.conf"
+  notify: reload nginx

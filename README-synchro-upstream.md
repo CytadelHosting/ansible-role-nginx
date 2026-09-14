@@ -24,6 +24,13 @@ Patch principal a conserver:
 - validation Nginx robuste avec prefix explicite (`-p /etc/nginx/`) **ou**
 - toute approche equivalente garantissant la resolution des includes pendant `validate`.
 
+Evolutions Cytadel a rejouer apres chaque sync (Debian uniquement) :
+
+- repos nginx.org (apt + pin) + blendbyte
+- `nginx_extra_packages`, include `modules-enabled`
+- mode migration + `nginx_confd_files`
+- layout `sites-available` / `sites-enabled`, user `nginx`
+
 ## Strategie de synchronisation
 
 Objectif: recuperer les evolutions upstream sans perdre les patches Cytadel.

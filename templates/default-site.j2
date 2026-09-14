@@ -1,0 +1,19 @@
+# Catch-all default_server. Unknown Host headers never hit a real vhost.
+server {
+    listen {{ nginx_default_site_listen }};
+{% if nginx_listen_ipv6 %}
+    listen [::]:{{ nginx_default_site_listen_ipv6 }};
+{% endif %}
+    server_name {{ nginx_default_site_server_name }};
+
+{% if nginx_default_site_root %}
+    root {{ nginx_default_site_root }};
+    index {{ nginx_default_site_index }};
+{% endif %}
+{% if nginx_default_site_return %}
+    return {{ nginx_default_site_return }};
+{% endif %}
+{% if nginx_default_site_extra_parameters %}
+    {{ nginx_default_site_extra_parameters | indent(4, False) }}
+{% endif %}
+}

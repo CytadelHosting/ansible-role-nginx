@@ -1,0 +1,22 @@
+# HTTP-level tuning. Included from nginx.conf via conf.d/*.conf.
+
+server_names_hash_bucket_size {{ nginx_server_names_hash_bucket_size }};
+client_max_body_size {{ nginx_client_max_body_size }};
+
+access_log  {{ nginx_access_log }};
+
+sendfile        {{ nginx_sendfile }};
+tcp_nopush      {{ nginx_tcp_nopush }};
+tcp_nodelay     {{ nginx_tcp_nodelay }};
+
+keepalive_timeout  {{ nginx_keepalive_timeout }};
+keepalive_requests {{ nginx_keepalive_requests }};
+
+server_tokens {{ nginx_server_tokens }};
+{% if nginx_proxy_cache_path %}
+proxy_cache_path {{ nginx_proxy_cache_path }};
+{% endif %}
+{% if nginx_extra_http_options %}
+
+{{ nginx_extra_http_options }}
+{% endif %}

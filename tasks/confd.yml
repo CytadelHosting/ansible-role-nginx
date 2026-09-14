@@ -1,0 +1,79 @@
+---
+# Deploy only the snippets declared in nginx_confd_files.
+# Undeclared files already in conf.d are left as-is (adopted).
+
+- name: Ensure nginx conf.d directory exists.
+  file:
+    path: "{{ nginx_conf_path }}"
+    state: directory
+    owner: root
+    group: "{{ root_group }}"
+    mode: "0755"
+
+- name: Inventory existing conf.d files (not managed by the role).
+  find:
+    paths: "{{ nginx_conf_path }}"
+    patterns: "*.conf"
+    file_type: file
+  register: nginx_confd_existing
+
+- name: Show adopted conf.d files.
+  debug:
+    msg: >-
+      conf.d presents: {{
+        nginx_confd_existing.files | map(attribute='path') | map('basename') | list
+      }}
+
+- name: Include sites-enabled from conf.d when using package nginx.conf.
+  template:
+    src: conf.d/00-sites-enabled.conf.j2
+    dest: "{{ nginx_conf_path }}/00-sites-enabled.conf"
+    owner: root
+    group: "{{ root_group }}"
+    mode: "0644"
+  when:
+    - not nginx_manage_main_config | bool
+    - nginx_conf_path != nginx_vhost_path
+  notify: reload nginx
+
+- name: Drop sites-enabled snippet when nginx.conf already includes it.
+  file:
+    path: "{{ nginx_conf_path }}/00-sites-enabled.conf"
+    state: absent
+  when: nginx_manage_main_config | bool
+  notify: reload nginx
+
+- name: Deploy declared conf.d snippets.
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ nginx_conf_path }}/{{ item.name }}"
+    owner: root
+    group: "{{ root_group }}"
+    mode: "{{ item.mode | default('0644') }}"
+  loop: "{{ nginx_confd_files }}"
+  when: item.state | default('present') != 'absent'
+  notify: reload nginx
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Remove declared conf.d snippets.
+  file:
+    path: "{{ nginx_conf_path }}/{{ item.name }}"
+    state: absent
+  loop: "{{ nginx_confd_files }}"
+  when: item.state | default('present') == 'absent'
+  notify: reload nginx
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Deploy upstreams snippet when upstreams are defined.
+  template:
+    src: conf.d/20-upstreams.conf.j2
+    dest: "{{ nginx_conf_path }}/20-upstreams.conf"
+    owner: root
+    group: "{{ root_group }}"
+    mode: "0644"
+  when:
+    - nginx_upstreams | length > 0
+    - not nginx_manage_main_config | bool
+  notify: reload nginx

@@ -1,3 +1,7 @@
+{% if nginx_modules_enabled_include | default(false) %}
+include {{ nginx_modules_enabled_path }}/*.conf;
+{% endif %}
+
 user  {{ nginx_user }};
 
 error_log  {{ nginx_error_log }};

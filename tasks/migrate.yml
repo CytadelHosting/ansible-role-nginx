@@ -1,0 +1,127 @@
+---
+# One-shot cleanup: keep sites-* / existing conf.d, restore stock files,
+# drop unused package params. Stamp prevents a second wipe.
+
+- name: Check nginx migration stamp.
+  stat:
+    path: "{{ nginx_migrate_stamp }}"
+  register: nginx_migrate_stamp_stat
+
+- name: Run nginx configuration migration.
+  when: nginx_migrate_force | bool or not nginx_migrate_stamp_stat.stat.exists
+  block:
+    - name: Create migration backup directory.
+      file:
+        path: "{{ nginx_migrate_backup_dir }}/{{ ansible_facts.date_time.iso8601_basic_short }}"
+        state: directory
+        owner: root
+        group: "{{ root_group }}"
+        mode: "0700"
+      register: nginx_migrate_backup
+
+    - name: Ensure conf.d exists.
+      file:
+        path: "{{ nginx_conf_path }}"
+        state: directory
+        owner: root
+        group: "{{ root_group }}"
+        mode: "0755"
+
+    - name: Check adopt source paths.
+      stat:
+        path: "{{ item }}"
+      loop: "{{ nginx_migrate_adopt_from }}"
+      register: nginx_migrate_adopt_stat
+
+    - name: Inventory existing conf.d files (left untouched).
+      find:
+        paths: "{{ nginx_migrate_adopt_stat.results | selectattr('stat.exists') | map(attribute='item') | list }}"
+        patterns: "*.conf"
+        file_type: file
+      register: nginx_migrate_found
+      when: nginx_migrate_adopt_stat.results | selectattr('stat.exists') | list | length > 0
+
+    - name: Normalize adopt results when no source path exists.
+      set_fact:
+        nginx_migrate_found: { files: [] }
+      when: nginx_migrate_found.files is not defined
+
+    - name: Show adopted conf.d files.
+      debug:
+        msg: >-
+          conf.d conserves: {{
+            nginx_migrate_found.files | default([])
+            | map(attribute='path') | map('basename') | list
+          }}
+
+    - name: Check current files before package reset.
+      stat:
+        path: "{{ item }}"
+      loop: "{{ nginx_migrate_reset_files }}"
+      register: nginx_migrate_current
+
+    - name: Backup current files before package reset.
+      copy:
+        src: "{{ item.item }}"
+        dest: "{{ nginx_migrate_backup.path }}/{{ item.item | basename }}"
+        remote_src: true
+        owner: root
+        group: "{{ root_group }}"
+        mode: "0644"
+      loop: "{{ nginx_migrate_current.results }}"
+      when: item.stat.exists | bool
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Create package extract working directory.
+      file:
+        path: /tmp/nginx-pkg-restore
+        state: directory
+        mode: "0755"
+
+    - name: Extract stock conffiles from the installed package.
+      script: restore-conffile-from-package.sh {{ item }} /tmp/nginx-pkg-restore
+      args:
+        executable: /bin/bash
+      loop: "{{ nginx_migrate_reset_files }}"
+      register: nginx_migrate_extract
+      failed_when: false
+      changed_when: true
+
+    - name: Check extracted package conffiles.
+      stat:
+        path: "/tmp/nginx-pkg-restore{{ item }}"
+      loop: "{{ nginx_migrate_reset_files }}"
+      register: nginx_migrate_extracted
+
+    - name: Restore conffiles from package payload.
+      copy:
+        src: "/tmp/nginx-pkg-restore{{ item.item }}"
+        dest: "{{ item.item }}"
+        remote_src: true
+        backup: true
+        owner: root
+        group: "{{ root_group }}"
+        mode: "0644"
+      loop: "{{ nginx_migrate_extracted.results }}"
+      when: item.stat.exists | bool
+      notify: reload nginx
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Remove unused leftover paths.
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop: "{{ nginx_migrate_remove_paths }}"
+      notify: reload nginx
+
+    - name: Write migration stamp.
+      copy:
+        dest: "{{ nginx_migrate_stamp }}"
+        owner: root
+        group: "{{ root_group }}"
+        mode: "0644"
+        content: |
+          migrated={{ ansible_facts.date_time.iso8601 }}
+          backup={{ nginx_migrate_backup.path }}
