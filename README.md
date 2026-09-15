@@ -185,7 +185,7 @@ If you are configuring Nginx as a load balancer, you can define one or more upst
 
 The user under which Nginx will run. Defaults to `nginx` for RedHat, `www-data` for Debian and `www` on FreeBSD and OpenBSD.
 
-    nginx_worker_processes: "{{ ansible_processor_vcpus|default(ansible_processor_count) }}"
+    nginx_worker_processes: auto
     nginx_worker_connections: "1024"
     nginx_multi_accept: "off"
 

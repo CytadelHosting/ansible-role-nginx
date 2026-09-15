@@ -117,8 +117,12 @@ nginx_confd_extra_dir: ""
 # Ancien levier (templates). Toujours supporté.
 nginx_confd_files: []
 
-nginx_worker_processes: >-
-  "{{ ansible_facts.processor_vcpus | default(ansible_facts.processor_count) }}"
+# version origin geerlingguy
+#nginx_worker_processes: >-
+#  "{{ ansible_facts.processor_vcpus | default(ansible_facts.processor_count) }}"
+# refacto Cytadel
+# auto = 1 worker par CPU (cgroup) au start. Override : entier ou "auto".
+nginx_worker_processes: auto
 nginx_worker_connections: "1024"
 nginx_multi_accept: "off"
 
