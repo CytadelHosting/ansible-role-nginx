@@ -22,7 +22,7 @@ nginx_conf_template: "nginx.conf.j2"
 nginx_vhost_template: "vhost.j2"
 
 nginx_worker_processes: >-
-  "{{ ansible_processor_vcpus | default(ansible_processor_count) }}"
+  "{{ ansible_facts.processor_vcpus | default(ansible_facts.processor_count) }}"
 nginx_worker_connections: "1024"
 nginx_multi_accept: "off"
 
