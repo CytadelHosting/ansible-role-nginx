@@ -1,0 +1,67 @@
+# Ansible managed
+# Please see /usr/share/doc/nginx-doc/examples/ for more detailed examples.
+##
+
+# Default server configuration
+#
+server {
+  listen {{ nginx_default_site_listen }};
+{% if nginx_listen_ipv6 %}
+  listen [::]:{{ nginx_default_site_listen_ipv6 }};
+{% endif %}
+
+  root /var/www/html;
+
+  index {{ nginx_default_site_index }};
+
+  server_name _;
+
+  location / {
+{% if nginx_default_site_return %}
+    # Host inconnu : on ne sert pas /var/www/html.
+    return {{ nginx_default_site_return }};
+{% else %}
+    # First attempt to serve request as file, then
+    # as directory, then fall back to displaying a 404.
+    try_files $uri $uri/ =404;
+{% endif %}
+  }
+
+  location ~ .well-known {
+    root                   /srv/tls/letsencrypt;
+    index                  index.html index.htm index.php ;
+    allow                  all ;
+  }
+
+  ### Monitoring by zabbix
+  location = /basic_status {
+    stub_status;
+    allow 127.0.0.1;
+    deny all;
+  }
+
+  # deny access to .htaccess files, if Apache's document root
+  # concurs with nginx's one
+  #
+  location ~ /\.ht {
+    deny all;
+  }
+
+{% if nginx_default_site_extra_parameters %}
+  {{ nginx_default_site_extra_parameters | indent(2, False) }}
+{% endif %}
+}
+
+
+# 001-default-ssl.conf — 1er vhost TLS, volontairement muet
+server {
+  listen 443 ssl default_server;
+{% if nginx_listen_ipv6 %}
+  listen [::]:443 ssl default_server;
+{% endif %}
+
+  server_name _;
+
+  # nginx >= 1.19.4 (Debian 11 / Ubuntu 22.04) : pas de cert, handshake refusé
+  ssl_reject_handshake on;
+}

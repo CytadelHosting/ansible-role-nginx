@@ -1,0 +1,7 @@
+# Blendbyte dynamic modules, built against nginx.org stable (deb822)
+Types: deb
+URIs: https://apt.blendbyte.net/nginx
+Suites: {{ ansible_facts.distribution_release }}
+Components: main
+Signed-By: {{ nginx_apt_keyring_dir }}/blendbyte-archive-keyring.gpg
+Enabled: yes

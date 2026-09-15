@@ -2,6 +2,19 @@
 # Used only for Debian/Ubuntu installation, as the -t option for apt.
 nginx_default_release: ""
 
+# Debian only: nginx.org official packages instead of distro nginx.
+nginx_official_repo_enabled: true
+# stable | mainline — blendbyte modules are built against stable only.
+nginx_official_repo_channel: stable
+
+# APT source format: auto | true | false
+# auto = deb822 (.sources) on Debian >= 12 / Ubuntu >= 24, else one-line .list
+nginx_apt_deb822: auto
+
+# Third-party keys go in /etc/apt/keyrings (admin-managed).
+# /usr/share/keyrings is for keys shipped by Debian packages, not our repos.
+nginx_apt_keyring_dir: /etc/apt/keyrings
+
 # Used only for Redhat installation, enables source Nginx repo.
 nginx_yum_repo_enabled: true
 
@@ -12,22 +25,109 @@ nginx_zypper_repo_enabled: true
 nginx_ppa_use: false
 nginx_ppa_version: stable
 
+# Debian only: blendbyte extras (brotli, modsecurity, ...). Needs nginx.org.
+nginx_blendbyte_repo_enabled: true
+
+# Extra packages from nginx.org and/or blendbyte.
+# Examples: nginx-module-brotli, nginx-module-modsecurity, nginx-module-headers-more
+nginx_extra_packages: []
+
 # The name of the nginx package to install.
 nginx_package_name: "nginx"
 
 nginx_service_state: started
 nginx_service_enabled: true
 
+# When false, keep the package nginx.conf and only patch the modules include.
+nginx_manage_main_config: true
 nginx_conf_template: "nginx.conf.j2"
 nginx_vhost_template: "vhost.j2"
 
-nginx_worker_processes: >-
-  "{{ ansible_facts.processor_vcpus | default(ansible_facts.processor_count) }}"
+# Debian only: dynamic modules drop-in (blendbyte).
+nginx_modules_enabled_path: /etc/nginx/modules-enabled
+nginx_modules_enabled_include: false
+
+# ---------------------------------------------------------------------------
+# Migration (one-shot). Set nginx_migrate: true once, then leave it false.
+# A stamp file prevents a second destructive reset unless force is set.
+# ---------------------------------------------------------------------------
+nginx_migrate: false
+nginx_migrate_force: false
+nginx_migrate_stamp: /etc/nginx/.cytadel-migrated
+nginx_migrate_backup_dir: /var/backups/nginx-migrate
+
+# Restore these paths from the installed package payload.
+nginx_migrate_reset_files:
+  - /etc/nginx/nginx.conf
+  - /etc/nginx/fastcgi_params
+  - /etc/nginx/mime.types
+
+# Drop unused package files. uwsgi_params = proxy uWSGI (Python),
+# scgi_params = SCGI, fastcgi.conf = variante de fastcgi_params avec SCRIPT_FILENAME.
+nginx_migrate_remove_paths:
+  - /etc/nginx/fastcgi.conf
+  - /etc/nginx/uwsgi_params
+  - /etc/nginx/scgi_params
+  - /etc/nginx/snippets
+  - /etc/nginx/proxy_params
+
+# Existing *.conf in conf.d stay in place (inventory only, no overwrite).
+nginx_migrate_adopt_from:
+  - /etc/nginx/conf.d
+
+# ---------------------------------------------------------------------------
+# Bibliothèque conf.d (Debian). Chaque clé s'active indépendamment.
+# Fichiers non listés déjà présents sur le serveur : on n'y touche pas.
+# ---------------------------------------------------------------------------
+# nginx_confd_enable:
+#   server_names_hash: true
+#   client_max_body: true
+#   gzip: true
+#   brotli: true
+#   upstreams: true
+nginx_confd_enable: {}
+
+nginx_confd_catalog:
+  - key: server_names_hash
+    name: 10-server-names-hash.conf
+    src: conf.d/10-server-names-hash.conf.j2
+  - key: client_max_body
+    name: 20-client-max-body.conf
+    src: conf.d/20-client-max-body.conf.j2
+  - key: gzip
+    name: 30-gzip.conf
+    src: conf.d/30-gzip.conf.j2
+  - key: brotli
+    name: 40-brotli.conf
+    src: conf.d/brotli.conf.j2
+  - key: upstreams
+    name: 50-upstreams.conf
+    src: conf.d/20-upstreams.conf.j2
+
+# Includes supplémentaires depuis le playbook (copy si .conf, template si .j2).
+# nginx_confd_extra:
+#   - src: "{{ playbook_dir }}/files/nginx/headers.conf"
+#     dest: headers.conf
+nginx_confd_extra: []
+
+# Dossier local (contrôleur) : tous les *.conf sont copiés dans conf.d.
+# nginx_confd_extra_dir: "{{ playbook_dir }}/files/nginx/conf.d"
+nginx_confd_extra_dir: ""
+
+# Ancien levier (templates). Toujours supporté.
+nginx_confd_files: []
+
+# version origin geerlingguy
+#nginx_worker_processes: >-
+#  "{{ ansible_facts.processor_vcpus | default(ansible_facts.processor_count) }}"
+# refacto Cytadel
+# auto = 1 worker par CPU (cgroup) au start. Override : entier ou "auto".
+nginx_worker_processes: auto
 nginx_worker_connections: "1024"
 nginx_multi_accept: "off"
 
 nginx_error_log: "/var/log/nginx/error.log warn"
-nginx_access_log: "/var/log/nginx/access.log main buffer=16k flush=2m"
+nginx_access_log: "/var/log/nginx/access.log  main buffer=16k flush=2m"
 
 nginx_sendfile: "on"
 nginx_tcp_nopush: "on"
@@ -60,6 +160,20 @@ nginx_extra_http_options: ""
 #      proxy_set_header   Host $http_host;
 
 nginx_remove_default_vhost: false
+nginx_sites_available_path: /etc/nginx/sites-available
+
+nginx_default_site_enabled: true
+nginx_default_site_template: default-site.j2
+# Même nom dans available et enabled (lisible).
+nginx_default_site_filename: 000-default.conf
+nginx_default_site_link: 000-default.conf
+# HTTP only (ex. 8080 default_server derrière haproxy). Le bloc TLS reste 443.
+nginx_default_site_listen: "80 default_server"
+nginx_default_site_listen_ipv6: "80 default_server"
+nginx_default_site_index: "index.html index.htm index.php index.nginx-debian.html"
+# Catch-all location / : 444 = close. Chaîne vide = try_files (servir root).
+nginx_default_site_return: "444"
+nginx_default_site_extra_parameters: ""
 
 # Listen on IPv6 (default: true)
 nginx_listen_ipv6: true

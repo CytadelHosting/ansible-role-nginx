@@ -6,7 +6,117 @@
 
 Installs Nginx on RedHat/CentOS, Debian/Ubuntu, Archlinux, FreeBSD or OpenBSD servers.
 
-This role installs and configures the latest version of Nginx from the Nginx yum repository (on RedHat-based systems), apt (on Debian-based systems), pacman (Archlinux), pkgng (on FreeBSD systems) or pkg_add (on OpenBSD systems). You will likely need to do extra setup work after this role has installed Nginx, like adding your own [virtualhost].conf file inside `/etc/nginx/conf.d/`, describing the location and options to use for your particular website.
+Cytadel changes apply to **Debian only**. Other OS stay on the upstream geerlingguy behavior.
+
+On Debian this fork installs nginx from **nginx.org** plus **blendbyte** extras (brotli, modsecurity, ...). Vhosts live in `/etc/nginx/sites-available` and are enabled via symlink in `/etc/nginx/sites-enabled`. HTTP tunables go in `/etc/nginx/conf.d/`.
+
+## Cytadel: repos, extras, migration, conf.d
+
+### Repositories
+
+    nginx_official_repo_enabled: true
+    nginx_official_repo_channel: stable   # or mainline — blendbyte is stable-only
+
+Debian only: nginx.org apt repo + pin 900. Distro nginx is no longer the default.
+
+Keys go in `/etc/apt/keyrings/` (admin third-party keys). `/usr/share/keyrings/` is left to Debian packages — nginx.org docs put the key there, we don't.
+
+    nginx_apt_deb822: auto   # deb822 (.sources) on Debian >= 12 / Ubuntu >= 24, else .list
+    nginx_apt_keyring_dir: /etc/apt/keyrings
+
+The unused format (`.list` vs `.sources`) is removed so apt does not see the same repo twice. Override with `true` / `false`.
+
+`nginx-module-*` is pinned to `apt.blendbyte.net` at priority 1001 (`/etc/apt/preferences.d/blendbyte-nginx`). nginx.org itself stays pinned at 900 for the `nginx` package.
+
+    nginx_blendbyte_repo_enabled: true
+    nginx_extra_packages: []
+    # - nginx-module-brotli
+    # - nginx-module-modsecurity
+    # - nginx-module-headers-more
+
+Blendbyte modules auto-drop `load_module` snippets in `/etc/nginx/modules-enabled/`. The role injects `include /etc/nginx/modules-enabled/*.conf;` at the top of `nginx.conf` (stock nginx.org does not).
+
+### Main config
+
+    nginx_manage_main_config: true
+
+`true` keeps the geerlingguy `nginx.conf.j2` template. Set `false` to keep the package `nginx.conf` and move HTTP tunables into `conf.d` snippets.
+
+Debian vhost layout:
+
+- `/etc/nginx/sites-available/<name>` — fichier réel
+- `/etc/nginx/sites-enabled/<name>` — symlink
+- `/etc/nginx/conf.d/` — snippets HTTP (tuning, modules), pas les vhosts
+
+The catch-all default site is seeded once as `sites-available/000-default.conf` and enabled as `sites-enabled/000-default.conf` (same name). Existing file is never overwritten. A leftover `sites-available/default` is renamed to `000-default.conf` if the new name is absent. `conf.d/default.conf` (paquet nginx.org) is renamed to `conf.d/default.disabled` so `include *.conf` skips it.
+
+    nginx_default_site_enabled: true
+    nginx_default_site_filename: 000-default.conf
+    nginx_default_site_link: 000-default.conf
+    nginx_default_site_listen: "80 default_server"
+    nginx_default_site_listen_ipv6: "80 default_server"
+    nginx_default_site_index: "index.html index.htm index.php index.nginx-debian.html"
+    nginx_default_site_return: "444"   # location / only; empty = try_files
+
+`fastcgi_params` is kept. `fastcgi.conf`, `uwsgi_params` and `scgi_params` are deleted (uwsgi = Python uWSGI, scgi = old alternative to FastCGI).
+
+### Migration (one-shot)
+
+    nginx_migrate: true
+    nginx_migrate_force: false
+    nginx_manage_main_config: false
+    nginx_confd_files:
+      - { name: 00-tuning.conf, src: conf.d/00-tuning.conf.j2 }
+      - { name: 10-log-formats.conf, src: conf.d/10-log-formats.conf.j2 }
+      - { name: brotli.conf, src: conf.d/brotli.conf.j2 }
+    nginx_extra_packages:
+      - nginx-module-brotli
+When `nginx_migrate` is true (and no stamp, unless `force`):
+
+1. Backup current files under `/var/backups/nginx-migrate/<timestamp>/`
+2. Inventory existing `conf.d/*.conf` (left untouched)
+3. Restore `nginx.conf`, `mime.types`, `fastcgi_params` from the **installed package**
+4. Delete `fastcgi.conf`, `uwsgi_params`, `scgi_params`, `snippets`, `proxy_params`
+5. Keep `sites-available` / `sites-enabled`
+6. Write `/etc/nginx/.cytadel-migrated`
+
+Leave `nginx_migrate: false` afterwards. Re-run with `nginx_migrate_force: true`.
+
+Override lists via `nginx_migrate_reset_files`, `nginx_migrate_remove_paths`, `nginx_migrate_adopt_from`.
+
+### conf.d library (Debian)
+
+`hash_bucket` and `client_max_body_size` are commented in `nginx.conf`. Enable them (and others) per snippet:
+
+    nginx_confd_enable:
+      server_names_hash: true
+      client_max_body: true
+      gzip: true
+      brotli: true
+      upstreams: true
+
+Playbook extras — a whole directory and/or an explicit list:
+
+    nginx_confd_extra_dir: "{{ playbook_dir }}/files/nginx/conf.d"
+
+    nginx_confd_extra:
+      - src: "{{ playbook_dir }}/files/nginx/headers.conf"
+        dest: headers.conf
+      - src: "{{ playbook_dir }}/templates/nginx/foo.conf.j2"
+        dest: foo.conf
+
+Legacy `nginx_confd_files` still works. Undeclared `*.conf` already on the host are left untouched.
+
+    nginx_confd_files:
+      - name: 00-tuning.conf
+        src: conf.d/00-tuning.conf.j2
+      - name: custom-security.conf
+        src: "{{ playbook_dir }}/templates/nginx/security.conf.j2"
+        state: present
+
+Snippets shipped by the role: `templates/conf.d/00-tuning.conf.j2`, `10-log-formats.conf.j2`, `20-upstreams.conf.j2`, `brotli.conf.j2`.
+
+If `nginx_upstreams` is set and `nginx_manage_main_config` is false, `20-upstreams.conf` is deployed automatically.
 
 ## Requirements
 
@@ -63,7 +173,7 @@ An example of a secondary vhost which will redirect to the one shown above.
 
 *Note: The `filename` defaults to the first domain in `server_name`, if you have two vhosts with the same domain, eg. a redirect, you need to manually set the `filename` so the second one doesn't override the first one*
 
-    nginx_remove_default_vhost: false
+    nginx_remove_default_vhost: true
 
 Whether to remove the 'default' virtualhost configuration supplied by Nginx. Useful if you want the base `/` URL to be directed at one of your own virtual hosts configured in a separate .conf file.
 
@@ -75,7 +185,7 @@ If you are configuring Nginx as a load balancer, you can define one or more upst
 
 The user under which Nginx will run. Defaults to `nginx` for RedHat, `www-data` for Debian and `www` on FreeBSD and OpenBSD.
 
-    nginx_worker_processes: "{{ ansible_processor_vcpus|default(ansible_processor_count) }}"
+    nginx_worker_processes: auto
     nginx_worker_connections: "1024"
     nginx_multi_accept: "off"
 
@@ -151,9 +261,10 @@ Configures Nginx's [`log_format`](http://nginx.org/en/docs/http/ngx_http_log_mod
 
 (For Ubuntu only) Allows you to use the official Nginx PPA instead of the system's package. You can set the version to `stable` or `development`.
 
+    nginx_official_repo_enabled: true
     nginx_yum_repo_enabled: true
 
-(For RedHat/CentOS only) Set this to `false` to disable the installation of the `nginx` yum repository. This could be necessary if you want the default OS stable packages, or if you use Satellite.
+`nginx_official_repo_enabled` installs the nginx.org repo on Debian/Ubuntu/RHEL. `nginx_yum_repo_enabled` is the geerlingguy alias: on RedHat the repo is enabled if either flag is true. Set both to `false` for distro packages or Satellite.
 
     nginx_zypper_repo_enabled: true
 

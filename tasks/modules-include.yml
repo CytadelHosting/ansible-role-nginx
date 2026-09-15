@@ -1,0 +1,24 @@
+---
+# Blendbyte (and nginx.org modules) drop load_module snippets here.
+# Stock nginx.org nginx.conf does not include this directory.
+
+- name: Ensure modules-enabled directory exists.
+  file:
+    path: "{{ nginx_modules_enabled_path }}"
+    state: directory
+    owner: root
+    group: "{{ root_group }}"
+    mode: "0755"
+
+- name: Ensure nginx.conf loads dynamic modules.
+  blockinfile:
+    path: "{{ nginx_conf_file_path }}"
+    marker: "# {mark} ANSIBLE MANAGED MODULES INCLUDE"
+    block: |
+      include {{ nginx_modules_enabled_path }}/*.conf;
+    insertbefore: BOF
+    backup: true
+  when:
+    - nginx_modules_enabled_include | bool
+    - not nginx_manage_main_config | bool
+  notify: reload nginx
