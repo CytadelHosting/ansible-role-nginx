@@ -87,6 +87,8 @@ nginx_migrate_adopt_from:
 #   upstreams: true
 nginx_confd_enable: {}
 
+# Prefixes numeriques : include conf.d/*.conf est lexical. Les trous (10/20/30)
+# permettent d'inserer un fichier (15-foo.conf) sans renommer le catalogue.
 nginx_confd_catalog:
   - key: server_names_hash
     name: 10-server-names-hash.conf

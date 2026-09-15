@@ -27,9 +27,17 @@ http {
     include       {{ nginx_mime_file_path }};
     default_type  application/octet-stream;
 
-    #server_names_hash_bucket_size {{ nginx_server_names_hash_bucket_size }};
-
-    #client_max_body_size {{ nginx_client_max_body_size }};
+    # Defaults binaire (ngx_http_core_module), pas ceux du role :
+    #   server_names_hash_bucket_size  = ngx_cacheline_size (64 sur amd64/arm64)
+    #   server_names_hash_max_size     = 512
+    #   client_max_body_size           = 1m
+    # Ne pas les ecrire ici : doublon si le snippet est actif, nginx -t refuse.
+    # Override via snippets conf.d (include plus bas) :
+    #   nginx_confd_enable:
+    #     server_names_hash: true    # → 10-server-names-hash.conf
+    #     client_max_body: true      # → 20-client-max-body.conf
+    #   nginx_server_names_hash_bucket_size: "128"   # defaut role si snippet on : 64
+    #   nginx_client_max_body_size: "64m"            # defaut role si snippet on : 64m
 
     log_format  main  {{ nginx_log_format | indent(23) }};
 
@@ -76,6 +84,7 @@ http {
 {% endblock %}
 
 {% block http_includes %}
+    # glob lexical : 10- 20- 30- figent l'ordre et laissent des trous (15-foo.conf).
     include {{ nginx_conf_path }}/*.conf;
     include {{ nginx_vhost_path }}/*;
 {% endblock %}

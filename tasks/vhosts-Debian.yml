@@ -35,27 +35,48 @@
     group: "{{ root_group }}"
     mode: "0755"
 
-# Ancien nom sites-available/default → 000-default.conf, sans ecraser.
-- name: Rename legacy default site filename.
-  command: mv {{ nginx_sites_available_path }}/default {{ nginx_sites_available_path }}/{{ nginx_default_site_filename }}
+# Reliquat paquet Debian : on le gare, on ne le recycle JAMAIS en 000-default.conf
+# (sinon force:false skip le template et le catch-all Cytadel n'est jamais pose).
+- name: Park leftover Debian sites-available/default.
+  command: mv -f {{ nginx_sites_available_path }}/default {{ nginx_sites_available_path }}/default.disabled
   args:
     removes: "{{ nginx_sites_available_path }}/default"
-    creates: "{{ nginx_sites_available_path }}/{{ nginx_default_site_filename }}"
   when:
     - nginx_default_site_enabled | bool
     - nginx_default_site_filename != 'default'
   notify: reload nginx
 
-# Seed only: on n'ecrase jamais un default deja present sur le serveur.
-- name: Deploy default site in sites-available if missing.
+- name: Stat default site destination.
+  stat:
+    path: "{{ nginx_sites_available_path }}/{{ nginx_default_site_filename }}"
+  register: nginx_default_site_dest
+  when: nginx_default_site_enabled | bool
+
+# Un run precedent a pu mv default → 000-default.conf (contenu stock Debian).
+- name: Detect stock Debian content under our default site name.
+  command: grep -E 'You should look at the following URL|snippets/snakeoil' {{ nginx_sites_available_path }}/{{ nginx_default_site_filename }}
+  register: nginx_default_site_stock
+  failed_when: false
+  changed_when: false
+  check_mode: false
+  when:
+    - nginx_default_site_enabled | bool
+    - nginx_default_site_dest.stat.exists | default(false)
+
+# Seed si absent. Remplace seulement un reliquat stock Debian (pas un fichier custom).
+- name: Deploy default site in sites-available.
   template:
     src: "{{ nginx_default_site_template }}"
     dest: "{{ nginx_sites_available_path }}/{{ nginx_default_site_filename }}"
     owner: root
     group: "{{ root_group }}"
     mode: "0644"
-    force: false
-  when: nginx_default_site_enabled | bool
+    force: true
+  when:
+    - nginx_default_site_enabled | bool
+    - >-
+      not (nginx_default_site_dest.stat.exists | default(false))
+      or (nginx_default_site_stock.rc | default(1) == 0)
   notify: reload nginx
 
 - name: Enable default site as 000-default.conf.
