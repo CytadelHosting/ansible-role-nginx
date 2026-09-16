@@ -140,9 +140,16 @@ nginx_keepalive_requests: "600"
 
 nginx_server_tokens: "on"
 
+# Role 64m (geerlingguy). Binaire nginx : 1m. Snippet : nginx_confd_enable.client_max_body.
 nginx_client_max_body_size: "64m"
 
-nginx_server_names_hash_bucket_size: "64"
+# Vide = omit → default binaire ngx_http_core_module. Valeur posee = override.
+#   server_names_hash_max_size     binaire : 512
+#   server_names_hash_bucket_size  binaire : ngx_cacheline_size (64 amd64/arm64, sinon 32)
+# Monter max_size d'abord, bucket ensuite (doc nginx hash).
+# Snippet : nginx_confd_enable.server_names_hash
+nginx_server_names_hash_max_size: ""
+nginx_server_names_hash_bucket_size: ""
 
 nginx_proxy_cache_path: ""
 

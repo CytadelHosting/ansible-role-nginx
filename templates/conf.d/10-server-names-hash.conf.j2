@@ -1,3 +1,9 @@
-# nginx_confd_enable.server_names_hash — default binaire : ngx_cacheline_size (64 amd64)
-# nginx_server_names_hash_bucket_size (defaut role : 64)
+# nginx_confd_enable.server_names_hash
+# var vide = omit → default binaire (max_size 512, bucket ngx_cacheline_size / 64 amd64)
+# monter max_size d'abord, bucket ensuite (doc nginx hash)
+{% if nginx_server_names_hash_max_size %}
+server_names_hash_max_size {{ nginx_server_names_hash_max_size }};
+{% endif %}
+{% if nginx_server_names_hash_bucket_size %}
 server_names_hash_bucket_size {{ nginx_server_names_hash_bucket_size }};
+{% endif %}

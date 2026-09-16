@@ -1,6 +1,11 @@
 # HTTP-level tuning. Included from nginx.conf via conf.d/*.conf.
 
+{% if nginx_server_names_hash_max_size %}
+server_names_hash_max_size {{ nginx_server_names_hash_max_size }};
+{% endif %}
+{% if nginx_server_names_hash_bucket_size %}
 server_names_hash_bucket_size {{ nginx_server_names_hash_bucket_size }};
+{% endif %}
 client_max_body_size {{ nginx_client_max_body_size }};
 
 access_log  {{ nginx_access_log }};
