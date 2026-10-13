@@ -1,3 +1,5 @@
+{{ ansible_managed | comment }}
+
 # Custom log formats (http context).
 
 log_format  main  {{ nginx_log_format | indent(18) }};

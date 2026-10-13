@@ -1,3 +1,5 @@
+{{ ansible_managed | comment }}
+
 [nginx]
 name=nginx repo
 baseurl=http://nginx.org/packages/centos/{{ ansible_facts.distribution_major_version }}/$basearch/

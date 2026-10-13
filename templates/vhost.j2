@@ -1,3 +1,5 @@
+{{ ansible_managed | comment }}
+
 {% block server_redirect %}
 {% if item.server_name_redirect is defined %}
 server {

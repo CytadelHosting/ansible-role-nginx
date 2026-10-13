@@ -1,3 +1,5 @@
+{{ ansible_managed | comment }}
+
 {% if nginx_modules_enabled_include | default(false) %}
 include {{ nginx_modules_enabled_path }}/*.conf;
 {% endif %}

@@ -1,3 +1,5 @@
+{{ ansible_managed | comment }}
+
 # HTTP-level tuning. Included from nginx.conf via conf.d/*.conf.
 
 {% if nginx_server_names_hash_max_size %}

@@ -1,3 +1,5 @@
+{{ ansible_managed | comment }}
+
 {% for upstream in nginx_upstreams %}
 upstream {{ upstream.name }} {
 {% if upstream.strategy is defined %}
