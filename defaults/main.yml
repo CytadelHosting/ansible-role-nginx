@@ -85,14 +85,13 @@ nginx_migrate_adopt_from:
 #   gzip: true
 #   brotli: true
 #   upstreams: true
-#   cloudflare: false          # true par défaut (enabled_by_default)
 #   javascript_mjs: false
 nginx_confd_enable: {}
 
 # Prefixes numeriques : include conf.d/*.conf est lexical. Les trous (10/20/30)
 # permettent d'inserer un fichier (15-foo.conf) sans renommer le catalogue.
 # enabled_by_default: posé même si la clé est absente de nginx_confd_enable
-# (un host_vars qui ne liste que server_names_hash ne coupe pas Cloudflare).
+# (un host_vars qui ne liste que server_names_hash ne coupe pas javascript_mjs).
 nginx_confd_catalog:
   - key: server_names_hash
     name: 10-server-names-hash.conf
@@ -104,10 +103,6 @@ nginx_confd_catalog:
   - key: client_max_body
     name: 20-client-max-body.conf
     src: conf.d/20-client-max-body.conf.j2
-  - key: cloudflare
-    name: cloudflare.conf
-    src: conf.d/cloudflare.conf.j2
-    enabled_by_default: true
   - key: gzip
     name: 30-gzip.conf
     src: conf.d/30-gzip.conf.j2
@@ -130,6 +125,9 @@ nginx_confd_extra_dir: ""
 
 # Ancien levier (templates). Toujours supporté.
 nginx_confd_files: []
+
+# Plages Cloudflare. Hors conf.d : inclus par le vhost (behind_reverse_proxy: cloudflare).
+nginx_cloudflare_snippet_path: /etc/nginx/snippets/cloudflare-realip.conf
 
 # version origin geerlingguy
 #nginx_worker_processes: >-

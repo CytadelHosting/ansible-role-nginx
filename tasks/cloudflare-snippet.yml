@@ -1,0 +1,26 @@
+---
+# Fichier inerte : personne ne l'inclut tant qu'un vhost ne le demande pas.
+# L'ancien conf.d/cloudflare.conf posait real_ip_header pour tous les server{}.
+
+- name: Ensure nginx snippets directory exists.
+  file:
+    path: "{{ nginx_cloudflare_snippet_path | dirname }}"
+    state: directory
+    owner: root
+    group: "{{ root_group }}"
+    mode: "0755"
+
+- name: Deploy Cloudflare realip snippet.
+  template:
+    src: snippets/cloudflare-realip.conf.j2
+    dest: "{{ nginx_cloudflare_snippet_path }}"
+    owner: root
+    group: "{{ root_group }}"
+    mode: "0644"
+  notify: reload nginx
+
+- name: Remove legacy http-level Cloudflare realip.
+  file:
+    path: "{{ nginx_conf_path }}/cloudflare.conf"
+    state: absent
+  notify: reload nginx

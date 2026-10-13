@@ -42,6 +42,9 @@
 - include_tasks: confd.yml
   when: ansible_facts.os_family == 'Debian'
 
+- include_tasks: cloudflare-snippet.yml
+  when: ansible_facts.os_family == 'Debian'
+
 - include_tasks: vhosts-Debian.yml
   when: ansible_facts.os_family == 'Debian'
 
