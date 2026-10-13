@@ -55,6 +55,13 @@
   loop_control:
     label: "{{ item.name }}"
 
+# mime.types du paquet nginx.org mappe déjà mjs. Le snippet doublonnait.
+- name: Remove obsolete mjs types snippet.
+  file:
+    path: "{{ nginx_conf_path }}/15-javascript-mjs.conf"
+    state: absent
+  notify: reload nginx
+
 - name: Remove disabled library snippets.
   file:
     path: "{{ nginx_conf_path }}/{{ item.name }}"
