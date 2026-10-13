@@ -50,7 +50,7 @@
     group: "{{ root_group }}"
     mode: "0644"
   loop: "{{ nginx_confd_catalog }}"
-  when: nginx_confd_enable[item.key] | default(false) | bool
+  when: nginx_confd_enable[item.key] | default(item.enabled_by_default | default(false)) | bool
   notify: reload nginx
   loop_control:
     label: "{{ item.name }}"
@@ -60,7 +60,7 @@
     path: "{{ nginx_conf_path }}/{{ item.name }}"
     state: absent
   loop: "{{ nginx_confd_catalog }}"
-  when: not (nginx_confd_enable[item.key] | default(false) | bool)
+  when: not (nginx_confd_enable[item.key] | default(item.enabled_by_default | default(false)) | bool)
   notify: reload nginx
   loop_control:
     label: "{{ item.name }}"

@@ -1,0 +1,20 @@
+---
+# Le fichier /etc/logrotate.d/nginx reste celui du paquet.
+# On ne change que le nombre de rotations conservées.
+# L'indentation d'origine est gardée (groupe \1). Pas de reload nginx :
+# logrotate lit ce fichier tout seul.
+
+- name: Check package nginx logrotate file.
+  stat:
+    path: "{{ nginx_logrotate_config }}"
+  register: nginx_logrotate_file
+  when: nginx_logrotate_rotate | default('') | string | length > 0
+
+- name: Set nginx logrotate retention.
+  replace:
+    path: "{{ nginx_logrotate_config }}"
+    regexp: '^(\s*)rotate\s+\d+\s*$'
+    replace: '\1rotate {{ nginx_logrotate_rotate }}'
+  when:
+    - nginx_logrotate_rotate | default('') | string | length > 0
+    - nginx_logrotate_file.stat.exists | default(false)

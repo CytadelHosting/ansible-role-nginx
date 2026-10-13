@@ -45,6 +45,9 @@
 - include_tasks: vhosts-Debian.yml
   when: ansible_facts.os_family == 'Debian'
 
+- include_tasks: logrotate.yml
+  when: ansible_facts.os_family == 'Debian'
+
 # Upstream vhost layout for every other OS.
 - import_tasks: vhosts.yml
   when: ansible_facts.os_family != 'Debian'

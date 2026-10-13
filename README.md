@@ -60,6 +60,11 @@ The catch-all default site is seeded once as `sites-available/000-default.conf` 
 
 `fastcgi_params` is kept. `fastcgi.conf`, `uwsgi_params` and `scgi_params` are deleted (uwsgi = Python uWSGI, scgi = old alternative to FastCGI).
 
+Log rotation of the package file: only the `rotate` directive in `/etc/logrotate.d/nginx` is rewritten. The rest of the conffile stays as shipped. Empty string leaves the package value.
+
+    nginx_logrotate_rotate: 63
+    nginx_logrotate_config: /etc/logrotate.d/nginx
+
 ### Migration (one-shot)
 
     nginx_migrate: true
@@ -86,7 +91,7 @@ Override lists via `nginx_migrate_reset_files`, `nginx_migrate_remove_paths`, `n
 
 ### conf.d library (Debian)
 
-`hash_bucket` and `client_max_body_size` are commented in `nginx.conf`. Enable them (and others) per snippet:
+`hash_bucket` and `client_max_body_size` are commented in `nginx.conf`. Enable them (and others) per snippet. This http value is only a floor. Per-site limits aligned on php-fpm belong in the vhost `server` block (cytadel.website), which overrides http and does not write `conf.d`.
 
     nginx_confd_enable:
       server_names_hash: true
@@ -213,7 +218,7 @@ Nginx server_tokens settings. Controls whether nginx responds with it's version 
 
     nginx_client_max_body_size: "64m"
 
-This value determines the largest file upload possible, as uploads are passed through Nginx before hitting a backend like `php-fpm`. If you get an error like `client intended to send too large body`, it means this value is set too low.
+Optional http floor, only if `nginx_confd_enable.client_max_body` is true. Per-vhost upload limits are set in the website vhost, not here. If you get `client intended to send too large body`, the effective limit (http floor or server override) is below the upload.
 
     nginx_server_names_hash_max_size: ""      # empty = omit (compiled 512)
     nginx_server_names_hash_bucket_size: ""  # empty = omit (compiled cache-line / 64 on amd64)
